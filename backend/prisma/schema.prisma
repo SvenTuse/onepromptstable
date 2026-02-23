@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  email          String   @unique @db.VarChar(255)
+  passwordHash   String?  @map("password_hash") @db.VarChar(255)
+  username       String   @unique @db.VarChar(50)
+  fullName       String?  @map("full_name") @db.VarChar(100)
+  role           String   @default("user") @db.VarChar(20)
+  isActive       Boolean  @default(true) @map("is_active")
+  emailVerified  Boolean  @default(false) @map("email_verified")
+  
+  // Google OAuth fields
+  googleId       String?  @unique @map("google_id") @db.VarChar(255)
+  provider       String?  @default("email") @db.VarChar(50)
+  picture        String?  @db.VarChar(500)
+  
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  lastLoginAt    DateTime? @map("last_login_at") @db.Timestamptz(6)
+
+  refreshTokens  RefreshToken[]
+  balances       Balance?
+  transactions   Transaction[]
+  apiUsage       ApiUsage[]
+
+  @@index([email])
+  @@index([username])
+  @@index([googleId])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash") @db.VarChar(255)
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
+  userAgent  String?   @map("user_agent") @db.VarChar(500)
+  ipAddress  String?   @map("ip_address") @db.Inet
+
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
+}
+
+model Balance {
+  id           String   @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId       String   @unique @map("user_id") @db.Uuid
+  balanceCents BigInt   @default(0) @map("balance_cents")
+  currency     String   @default("USD") @db.VarChar(3)
+  lockedCents  BigInt   @default(0) @map("locked_cents")
+  version      Int      @default(1)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@map("balances")
+}
+
+model Transaction {
+  id                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId              String    @map("user_id") @db.Uuid
+  type                String    @db.VarChar(20)
+  amountCents         BigInt    @map("amount_cents")
+  balanceBeforeCents  BigInt    @map("balance_before_cents")
+  balanceAfterCents   BigInt    @map("balance_after_cents")
+  currency            String    @default("USD") @db.VarChar(3)
+  status              String    @default("completed") @db.VarChar(20)
+  description         String?   @db.Text
+  metadata            Json?     @db.JsonB
+  idempotencyKey      String?   @unique @map("idempotency_key") @db.VarChar(255)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  completedAt         DateTime? @map("completed_at") @db.Timestamptz(6)
+
+  user                User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  apiUsage            ApiUsage[]
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@index([type])
+  @@index([status])
+  @@index([idempotencyKey])
+  @@map("transactions")
+}
+
+model ApiUsage {
+  id              String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  transactionId   String?   @map("transaction_id") @db.Uuid
+  model           String    @db.VarChar(100)
+  tokensUsed      Int       @map("tokens_used")
+  costCents       BigInt    @map("cost_cents")
+  requestMetadata Json?     @map("request_metadata") @db.JsonB
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction     Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@index([transactionId])
+  @@map("api_usage")
+}
