@@ -6,10 +6,11 @@
 
 import React, { useState } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { useSolanaPayment } from '../contexts/SolanaPaymentContext';
 import { Wallet, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,8 +28,9 @@ export const SolanaWalletButton: React.FC<SolanaWalletButtonProps> = ({
   variant = 'default' 
 }) => {
   const { connected, connecting, disconnect } = useWallet();
-  const { 
-    walletAddress, 
+  const { setVisible } = useWalletModal();
+  const {
+    walletAddress,
     usdcBalance, 
     solBalance, 
     refreshBalances,
@@ -49,19 +51,22 @@ export const SolanaWalletButton: React.FC<SolanaWalletButtonProps> = ({
 
   if (!connected) {
     return (
-      <WalletMultiButton 
-        style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          border: 'none',
-          borderRadius: '8px',
-          padding: '10px 20px',
-          fontSize: '14px',
-          fontWeight: '600',
-          width: variant === 'panel' ? '100%' : 'auto',
-        }}
+      <Button
+        type="button"
+        variant={variant === 'panel' ? 'default' : 'outline'}
+        onClick={() => setVisible(true)}
+        disabled={connecting}
+        className={cn(
+          'justify-center gap-2 border-none text-white hover:opacity-90',
+          'bg-gradient-to-r from-[#667eea] to-[#764ba2]',
+          variant === 'panel' && 'w-full'
+        )}
       >
-        {connecting ? 'Connecting...' : 'Connect Solana Wallet'}
-      </WalletMultiButton>
+        <Wallet className="h-4 w-4 shrink-0" />
+        <span className="truncate">
+          {connecting ? 'Connecting…' : 'Connect Wallet'}
+        </span>
+      </Button>
     );
   }
 
